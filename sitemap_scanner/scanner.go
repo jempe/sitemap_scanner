@@ -13,10 +13,11 @@ import (
 
 // SitemapURL represents a URL entry in the sitemap
 type SitemapURL struct {
-	Location     string `json:"loc" xml:"loc"`
-	LastModified string `json:"lastmod,omitempty" xml:"lastmod,omitempty"`
-	ChangeFreq   string `json:"changefreq,omitempty" xml:"changefreq,omitempty"`
-	Priority     string `json:"priority,omitempty" xml:"priority,omitempty"`
+	SiteMapIndexURL string `json:"sitemap"`
+	Location        string `json:"loc" xml:"loc"`
+	LastModified    string `json:"lastmod,omitempty" xml:"lastmod,omitempty"`
+	ChangeFreq      string `json:"changefreq,omitempty" xml:"changefreq,omitempty"`
+	Priority        string `json:"priority,omitempty" xml:"priority,omitempty"`
 }
 
 // Sitemap represents the sitemap structure
@@ -171,6 +172,10 @@ func processSitemap(sitemapURL string) ([]SitemapURL, error) {
 	var sitemap Sitemap
 	if err := xml.Unmarshal(body, &sitemap); err != nil {
 		return nil, fmt.Errorf("failed to parse sitemap XML: %v", err)
+	}
+
+	for i, _ := range sitemap.URLs {
+		sitemap.URLs[i].SiteMapIndexURL = sitemapURL
 	}
 
 	return sitemap.URLs, nil
