@@ -40,9 +40,8 @@ type SitemapIndexURL struct {
 
 // SitemapResult represents the final result
 type SitemapResult struct {
-	URLs     []SitemapURL `json:"urls"`
-	Sitemaps []string     `json:"sitemap_urls"`
-	Error    string       `json:"error,omitempty"`
+	URLs  []SitemapURL `json:"urls"`
+	Error string       `json:"error,omitempty"`
 }
 
 // GetSitemap retrieves sitemap data by first checking robots.txt and returns it as JSON
@@ -72,20 +71,17 @@ func GetSitemap(targetURL string) (SitemapResult, error) {
 	}
 
 	var allURLs []SitemapURL
-	var validSitemaps []string
 
 	// Process each sitemap URL
 	for _, sitemapURL := range sitemapURLs {
 		urls, err := processSitemap(sitemapURL)
 		if err == nil && len(urls) > 0 {
 			allURLs = append(allURLs, urls...)
-			validSitemaps = append(validSitemaps, sitemapURL)
 		}
 	}
 
 	result := SitemapResult{
-		URLs:     allURLs,
-		Sitemaps: validSitemaps,
+		URLs: allURLs,
 	}
 
 	if len(allURLs) == 0 {
