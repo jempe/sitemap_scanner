@@ -28,7 +28,8 @@ type config struct {
 }
 
 type SitemapRequest struct {
-	URL string `json:"url"`
+	URL          string `json:"url"`
+	RefreshCache bool   `json:"refresh_cache"`
 }
 
 var logger *jsonlog.Logger
@@ -125,6 +126,14 @@ func handleGetSitemap(w http.ResponseWriter, r *http.Request) {
 		}
 		apiResponse(w, http.StatusBadRequest, errMessage)
 		return
+	}
+
+	if req.RefreshCache {
+		// Remove from cache
+		sitemapCache.Delete(req.URL)
+		logger.PrintInfo("Cache refreshed for URL", map[string]string{
+			"url": req.URL,
+		})
 	}
 
 	// Check cache first
