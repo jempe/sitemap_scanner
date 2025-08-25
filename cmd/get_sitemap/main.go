@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jempe/sitemap_scanner/internal/jsonlog"
+	sitemapscanner "github.com/jempe/sitemap_scanner/sitemap_scanner"
 )
 
 const version = "1.0.0"
@@ -121,9 +122,19 @@ func handleGetSitemap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	sitemapData, err := sitemapscanner.GetSitemap(req.URL)
+
+	if err != nil {
+		errMessage := map[string]string{
+			"error": err.Error(),
+		}
+		apiResponse(w, http.StatusInternalServerError, errMessage)
+		return
+	}
+
 	// Return success response
-	apiResponse(w, http.StatusOK, map[string]string{
-		"status": "success",
+	apiResponse(w, http.StatusOK, map[string]any{
+		"sitemap": sitemapData,
 	})
 }
 
