@@ -16,6 +16,7 @@ import (
 
 	"github.com/jempe/sitemap_scanner/internal/jsonlog"
 	sitemapscanner "github.com/jempe/sitemap_scanner/sitemap_scanner"
+	"github.com/patrickmn/go-cache"
 )
 
 const version = "1.0.0"
@@ -33,9 +34,13 @@ type SitemapRequest struct {
 var logger *jsonlog.Logger
 var cfg config
 var wg sync.WaitGroup
+var sitemapCache *cache.Cache
 
 func main() {
 	logger = jsonlog.New(os.Stdout, jsonlog.LevelInfo)
+
+	// Initialize cache with 24 hour expiration and 30 minute cleanup interval
+	sitemapCache = cache.New(24*time.Hour, 30*time.Minute)
 
 	// API Web Server Settings
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
@@ -122,6 +127,22 @@ func handleGetSitemap(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check cache first
+	if cachedData, found := sitemapCache.Get(req.URL); found {
+		logger.PrintInfo("Cache hit for URL", map[string]string{
+			"url": req.URL,
+		})
+		apiResponse(w, http.StatusOK, map[string]any{
+			"sitemap": cachedData,
+		})
+		return
+	}
+
+	// Cache miss - fetch sitemap
+	logger.PrintInfo("Cache miss for URL, fetching sitemap", map[string]string{
+		"url": req.URL,
+	})
+
 	sitemapData, err := sitemapscanner.GetSitemap(req.URL)
 
 	if err != nil {
@@ -131,6 +152,9 @@ func handleGetSitemap(w http.ResponseWriter, r *http.Request) {
 		apiResponse(w, http.StatusInternalServerError, errMessage)
 		return
 	}
+
+	// Store in cache for 24 hours
+	sitemapCache.Set(req.URL, sitemapData, cache.DefaultExpiration)
 
 	// Return success response
 	apiResponse(w, http.StatusOK, map[string]any{
