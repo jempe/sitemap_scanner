@@ -22,9 +22,10 @@ import (
 const version = "1.0.0"
 
 type config struct {
-	port     int
-	username string
-	password string
+	port         int
+	username     string
+	password     string
+	cacheMinutes int
 }
 
 type SitemapRequest struct {
@@ -40,9 +41,6 @@ var sitemapCache *cache.Cache
 func main() {
 	logger = jsonlog.New(os.Stdout, jsonlog.LevelInfo)
 
-	// Initialize cache with 24 hour expiration and 30 minute cleanup interval
-	sitemapCache = cache.New(24*time.Hour, 30*time.Minute)
-
 	// API Web Server Settings
 	flag.IntVar(&cfg.port, "port", 4000, "API server port")
 
@@ -50,7 +48,19 @@ func main() {
 	flag.StringVar(&cfg.username, "username", "", "Username for basic authentication")
 	flag.StringVar(&cfg.password, "password", "", "Password for basic authentication")
 
+	flag.IntVar(&cfg.cacheMinutes, "cache-minutes", 24*60, "Cache minutes")
+
 	flag.Parse()
+
+	intervalTime := time.Duration(cfg.cacheMinutes) * time.Minute
+
+	// Initialize cache with 24 hour expiration and 30 minute cleanup interval
+	sitemapCache = cache.New(intervalTime, intervalTime/5)
+
+	logger.PrintInfo("Cache initialized", map[string]string{
+		"interval": intervalTime.String(),
+		"cleanup":  (intervalTime / 5).String(),
+	})
 
 	// Wrap the handler with basic authentication if credentials are provided
 	if cfg.username != "" && cfg.password != "" {
