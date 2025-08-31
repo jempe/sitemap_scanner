@@ -131,19 +131,11 @@ func getSitemapURLsFromRobots(baseURL string) ([]string, error) {
 
 // processSitemap fetches and parses a sitemap XML file
 func processSitemap(sitemapURL string) ([]SitemapURL, error) {
-	client := &http.Client{
-		Timeout: 30 * time.Second,
-	}
-
-	resp, err := client.Get(sitemapURL)
+	resp, err := GetURL(sitemapURL)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("sitemap not found: %d", resp.StatusCode)
-	}
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -175,4 +167,66 @@ func processSitemap(sitemapURL string) ([]SitemapURL, error) {
 	}
 
 	return sitemap.URLs, nil
+}
+
+// GetURL makes an HTTP GET request to the specified URL and returns detailed error messages for different status codes
+func GetURL(url string) (*http.Response, error) {
+	client := &http.Client{
+		Timeout: 30 * time.Second,
+	}
+
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to %s: %v", url, err)
+	}
+
+	// Check for HTTP error status codes and return descriptive messages
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return resp, nil
+	case http.StatusBadRequest:
+		resp.Body.Close()
+		return nil, fmt.Errorf("bad request (400): the server could not understand the request to %s", url)
+	case http.StatusUnauthorized:
+		resp.Body.Close()
+		return nil, fmt.Errorf("unauthorized (401): authentication is required to access %s", url)
+	case http.StatusForbidden:
+		resp.Body.Close()
+		return nil, fmt.Errorf("forbidden (403): access to %s is denied", url)
+	case http.StatusNotFound:
+		resp.Body.Close()
+		return nil, fmt.Errorf("not found (404): %s does not exist", url)
+	case http.StatusMethodNotAllowed:
+		resp.Body.Close()
+		return nil, fmt.Errorf("method not allowed (405): GET method is not supported for %s", url)
+	case http.StatusRequestTimeout:
+		resp.Body.Close()
+		return nil, fmt.Errorf("request timeout (408): the server timed out waiting for the request to %s", url)
+	case http.StatusTooManyRequests:
+		resp.Body.Close()
+		return nil, fmt.Errorf("too many requests (429): rate limit exceeded for %s", url)
+	case http.StatusInternalServerError:
+		resp.Body.Close()
+		return nil, fmt.Errorf("internal server error (500): the server encountered an error processing %s", url)
+	case http.StatusBadGateway:
+		resp.Body.Close()
+		return nil, fmt.Errorf("bad gateway (502): the server received an invalid response from upstream for %s", url)
+	case http.StatusServiceUnavailable:
+		resp.Body.Close()
+		return nil, fmt.Errorf("service unavailable (503): %s is temporarily unavailable", url)
+	case http.StatusGatewayTimeout:
+		resp.Body.Close()
+		return nil, fmt.Errorf("gateway timeout (504): the server timed out waiting for upstream response for %s", url)
+	default:
+		if resp.StatusCode >= 400 && resp.StatusCode < 500 {
+			resp.Body.Close()
+			return nil, fmt.Errorf("client error (%d): request to %s failed", resp.StatusCode, url)
+		} else if resp.StatusCode >= 500 {
+			resp.Body.Close()
+			return nil, fmt.Errorf("server error (%d): %s is experiencing server issues", resp.StatusCode, url)
+		} else {
+			// For other 2xx and 3xx status codes, return the response
+			return resp, nil
+		}
+	}
 }
